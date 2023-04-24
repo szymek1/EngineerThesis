@@ -4,9 +4,12 @@ Set of utilities necessary for preprocessing images for fitting into DL models
 
 import pathlib
 from pathlib import Path
-from typing import List, Tuple, Generator
+from typing import List, Tuple, Generator, Optional
 
 import cv2
+import numpy as np
+from sklearn.cluster import MeanShift, estimate_bandwidth
+from sklearn.preprocessing import StandardScaler
 
 from .IProcessing import IProcess
 
@@ -18,9 +21,8 @@ class Preprocessor(IProcess):
 
     def __init__(self, img_dirs: List[str], destination_path: str) -> None:
         """
-        :param img_dirs:
-        - imgs_dirs: set of paths to images which are to be preprocessed
-        - destination_path: path to a directory where images are saved to
+        :param img_dirs: set of paths to images which are to be preprocessed
+        :param destination_path: path to a directory where images are saved to
         """
 
         self._imgPaths: List[str] = img_dirs
@@ -28,11 +30,10 @@ class Preprocessor(IProcess):
         self._imgExtensions: List[str] = ['.jpg', '.jpeg', '.png']
         # self._imgs_lists: List[List[str]] = list()
 
-    def change_resolution(self, new_resolution: Tuple[int, int]):
+    def change_resolution(self, new_resolution: Tuple[int, int]) -> None:
         """
-        :param new_resolution:
-        - new_resolution: format (int, int), changes resolution of found images
-        :return:
+        :param new_resolution: format (int, int), changes resolution of found images
+        :return: None, only saves to given directory
         """
 
         for i in self.get_images():
@@ -44,7 +45,7 @@ class Preprocessor(IProcess):
 
     def get_images(self) -> Generator[pathlib.PosixPath, None, None]:
         """
-        :return: list of all images found in given directories
+        :return: generator to found images
         """
 
         # found_imgs: List[List[str]] = list()
@@ -63,3 +64,77 @@ class Preprocessor(IProcess):
 
         return found_imgs
         """
+
+
+class MSProcessor(Preprocessor):
+    """
+    Class extensioning Preprocessor capabilities with Mean Shift Clustering
+    """
+
+    def __init__(self, img_dirs: List[str], destination_path: str, qunatile: float, samples_numb: int) -> None:
+        """
+        :param img_dirs: set of paths to images which are to be preprocessed
+        :param destination_path: destination_path: path to a directory where images are saved to
+        :param qunatile: distance between points used for estimating bandwidth
+        :param samples_numb: subset of samples from a given region used for estimating bandwidth
+        """
+
+        super().__init__(img_dirs, destination_path)
+        self._quantile: float = qunatile
+        self._samples_numb: int = samples_numb
+
+    def change_resolution(self, new_resolution: Tuple[int, int]) -> Generator[np.ndarray, None, None]:
+        """
+        :param new_resolution: format (int, int), changes resolution of found images
+        :return: generator to cropped images, as numpy arrays
+        """
+
+        for i in self.get_images():
+            image_path = i
+            roi = cv2.imread(str(image_path))
+            roi = roi[0:new_resolution[1], 0:new_resolution[0]]
+            yield roi
+
+    def ms_cluster(self, are_cropped: bool, new_resolution: Optional[Tuple[int, int]] = None) -> None:
+        """
+        :param are_cropped: checks if there is a need to call change_resolution
+        :param new_resolution: format (int, int), changes resolution of found images
+        :return: None, saves images to given destination
+        """
+
+        # TODO: find a way to not initialize mean shift instance every image !!!
+        # TODO: fix bug- could not find a writer for the specified extension in function 'imwrite_' in cv2.imwrite()
+        if are_cropped is False and new_resolution is None:
+            raise ValueError("ms_cluster must have new_resolution set if are_cropped == False!")
+        if are_cropped is True:
+            scaler = StandardScaler()
+
+            for i in self.get_images():
+                image_name = str(i.name)
+                i = cv2.imread(str(i))
+                pixels = np.reshape(i, (-1, 3))
+                pixels = scaler.fit_transform(pixels)
+                bandwidth = estimate_bandwidth(pixels, quantile=self._quantile, n_samples=self._samples_numb)
+                ms = MeanShift(bandwidth=bandwidth, bin_seeding=True)
+                ms.fit(pixels)
+                labels = ms.labels_
+                labels = np.reshape(labels, i.shape[:2])
+                cv2.imwrite(str(pathlib.PurePath(self._destPath).joinpath(image_name)), labels)
+
+        else:
+            scaler = StandardScaler()
+
+            iteration = 0
+            name = "sample"
+
+            for i in self.change_resolution(new_resolution):
+                pixels = np.reshape(i, (-1, 3))
+                pixels = scaler.fit_transform(pixels)
+                bandwidth = estimate_bandwidth(pixels, quantile=self._quantile, n_samples=self._samples_numb)
+                ms = MeanShift(bandwidth=bandwidth, bin_seeding=True)
+                ms.fit(pixels)
+                labels = ms.labels_
+                labels = np.reshape(labels, i.shape[:2])
+                cv2.imwrite(str(pathlib.PurePath(self._destPath).joinpath(name + str(iteration))), labels)
+                iteration += 1
+
