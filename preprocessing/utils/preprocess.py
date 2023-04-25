@@ -95,18 +95,18 @@ class MSProcessor(Preprocessor):
             roi = roi[0:new_resolution[1], 0:new_resolution[0]]
             yield roi
 
-    def ms_cluster(self, are_cropped: bool, new_resolution: Optional[Tuple[int, int]] = None) -> None:
+    def ms_cluster(self, change_res: bool, new_resolution: Optional[Tuple[int, int]] = None) -> None:
         """
-        :param are_cropped: checks if there is a need to call change_resolution
+        :param change_res: checks if there is a need to call change_resolution
         :param new_resolution: format (int, int), changes resolution of found images
         :return: None, saves images to given destination
         """
 
         # TODO: find a way to not initialize mean shift instance every image !!!
         # TODO: fix bug- could not find a writer for the specified extension in function 'imwrite_' in cv2.imwrite()
-        if are_cropped is False and new_resolution is None:
-            raise ValueError("ms_cluster must have new_resolution set if are_cropped == False!")
-        if are_cropped is True:
+        if change_res is True and new_resolution is None:
+            raise ValueError("ms_cluster must have new_resolution set to not None if change_res == True!")
+        if change_res is True:
             scaler = StandardScaler()
 
             for i in self.get_images():

@@ -21,23 +21,21 @@ def main(my_args: argparse.Namespace) -> None:
     new_resolution = my_args.res
     use_ms = my_args.ms_use
 
-    processor = Preprocessor(imgs_directories, save_destination)
-
-    # TODO: make more clear !!!
-    if new_resolution is not None:
-        if use_ms is True:
-            print("Using mean shift processor")
-            processor = MSProcessor(imgs_directories, save_destination, 0.06, 100)
+    if use_ms is True:
+        processor = MSProcessor(imgs_directories, save_destination, 0.06, 100)
+        if new_resolution is not None:
+            print("Using mean shift processor...\nResolution will be changed...")
+            processor.ms_cluster(True, new_resolution)
+        else:
+            print("Using mean shift processor...\nResolution will remain...")
             processor.ms_cluster(False, new_resolution)
-        else:
-            processor.change_resolution(new_resolution)
     else:
-        print("No resolution specified, default resolution will be used\nUsing mean shift processor")
-        if use_ms is True:
-            processor = MSProcessor(imgs_directories, save_destination, 0.01, 100)
-            processor.ms_cluster(True)
+        processor = Preprocessor(imgs_directories, save_destination)
+        if new_resolution is not None:
+            print("Resolution will be changed...\nNo Mean Shift processing applied...")
+            processor.change_resolution(new_resolution)
         else:
-            print("No action to take")
+            print("No action to take\nApp closes...")
             exit()
 
 
