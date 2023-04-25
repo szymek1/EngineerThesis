@@ -28,7 +28,6 @@ class Preprocessor(IProcess):
         self._imgPaths: List[str] = img_dirs
         self._destPath: str = destination_path
         self._imgExtensions: List[str] = ['.jpg', '.jpeg', '.png']
-        # self._imgs_lists: List[List[str]] = list()
 
     def change_resolution(self, new_resolution: Tuple[int, int]) -> None:
         """
@@ -48,22 +47,10 @@ class Preprocessor(IProcess):
         :return: generator to found images
         """
 
-        # found_imgs: List[List[str]] = list()
-
         for directory in self._imgPaths:
             for path in Path(directory).rglob('*'):
                 if path.suffix.lower() in self._imgExtensions:
                     yield path
-        """
-                for directory in self._imgPaths:
-            sub_list = list()
-            for path in Path(directory).rglob('*'):
-                if path.suffix.lower() in self._imgExtensions:
-                    sub_list.append(str(path))
-            found_imgs.append(sub_list)
-
-        return found_imgs
-        """
 
 
 class MSProcessor(Preprocessor):
@@ -103,25 +90,9 @@ class MSProcessor(Preprocessor):
         """
 
         # TODO: find a way to not initialize mean shift instance every image !!!
-        # TODO: fix bug- could not find a writer for the specified extension in function 'imwrite_' in cv2.imwrite()
         if change_res is True and new_resolution is None:
             raise ValueError("ms_cluster must have new_resolution set to not None if change_res == True!")
         if change_res is True:
-            scaler = StandardScaler()
-
-            for i in self.get_images():
-                image_name = str(i.name)
-                i = cv2.imread(str(i))
-                pixels = np.reshape(i, (-1, 3))
-                pixels = scaler.fit_transform(pixels)
-                bandwidth = estimate_bandwidth(pixels, quantile=self._quantile, n_samples=self._samples_numb)
-                ms = MeanShift(bandwidth=bandwidth, bin_seeding=True)
-                ms.fit(pixels)
-                labels = ms.labels_
-                labels = np.reshape(labels, i.shape[:2])
-                cv2.imwrite(str(pathlib.PurePath(self._destPath).joinpath(image_name)), labels)
-
-        else:
             scaler = StandardScaler()
 
             iteration = 0
@@ -135,6 +106,20 @@ class MSProcessor(Preprocessor):
                 ms.fit(pixels)
                 labels = ms.labels_
                 labels = np.reshape(labels, i.shape[:2])
-                cv2.imwrite(str(pathlib.PurePath(self._destPath).joinpath(name + str(iteration))), labels)
+                cv2.imwrite(str(pathlib.PurePath(self._destPath).joinpath(name + str(iteration) + '.png')), labels)
                 iteration += 1
 
+        else:
+            scaler = StandardScaler()
+
+            for i in self.get_images():
+                image_name = str(i.name)
+                i = cv2.imread(str(i))
+                pixels = np.reshape(i, (-1, 3))
+                pixels = scaler.fit_transform(pixels)
+                bandwidth = estimate_bandwidth(pixels, quantile=self._quantile, n_samples=self._samples_numb)
+                ms = MeanShift(bandwidth=bandwidth, bin_seeding=True)
+                ms.fit(pixels)
+                labels = ms.labels_
+                labels = np.reshape(labels, i.shape[:2])
+                cv2.imwrite(str(pathlib.PurePath(self._destPath).joinpath(image_name)), labels)
