@@ -21,7 +21,7 @@ class Preprocessor(IProcess):
     Class containing utilities for cropping images and smoothening them
     """
 
-    def __init__(self, img_dirs: List[str], destination_path: str) -> None:
+    def __init__(self, img_dirs: List[str], destination_path: Optional[str]) -> None:
         """
         :param img_dirs: set of paths to images which are to be preprocessed
         :param destination_path: path to a directory where images are saved to
@@ -174,6 +174,7 @@ class MSProcessor(Preprocessor):
         :param roi: small piece of a full scale image
         :return: the same roi but processed by Mean Shift
         """
+        
         img = roi.copy()
         roi = cv2.medianBlur(roi, 3)
         roi = roi.reshape((-1, 3))
