@@ -13,7 +13,41 @@ from skimage.metrics import mean_squared_error, structural_similarity
 
 from utils.preprocess import Preprocessor
 
-# TODO: implement Canny edge validation with OpenCV
+
+def apply_canny_edge(images: tuple, destination: str) -> None:
+    """
+    Applies canny edge to evaluate edges perservation
+    :param images: tuple with generators to original and processed images
+    :param destination: path to the destination where images should be saved
+    :return: none
+    """
+
+    lower_threshold = 50
+    upper_threshold = 100
+
+    img_count = 0
+
+    name_edges_org = "edges_org"
+    name_edges_proc = "edges_proc"
+
+    for org_img, proc_img in zip(images[0], images[1]):
+        """
+        images[0]- generator with original images
+        images[1]- generator with processed images
+        """
+
+        org_img = cv2.imread(str(org_img), cv2.IMREAD_GRAYSCALE)
+        proc_img = cv2.imread(str(proc_img), cv2.IMREAD_GRAYSCALE)
+
+        edges_org = cv2.Canny(org_img, lower_threshold, upper_threshold)
+        edges_proc = cv2.Canny(proc_img, lower_threshold, upper_threshold)
+
+        cv2.imwrite(str(pathlib.PurePath(destination).joinpath(name_edges_org + str(img_count) + '.png')), edges_org)
+        cv2.imwrite(str(pathlib.PurePath(destination).joinpath(name_edges_proc + str(img_count) + '.png')), edges_proc)
+
+        img_count += 1
+
+
 def validate_processing(images: tuple, report_dest: str) -> None:
     """
     Uses MSE and SSIM metrics to validate images processing technique
@@ -57,22 +91,31 @@ def validate_processing(images: tuple, report_dest: str) -> None:
 
 def main(my_args: argparse.Namespace) -> None:
     imgs_directories = my_args.dirs
+    imgs_directories = imgs_directories[0]
     save_destination = my_args.dest
+    validation_type = my_args.which_method
 
-    original_img_dir = "org_imgs"
-    proceeded_img_dir = "proc_img"
+    if validation_type == "metrics" or validation_type == "canny":
 
-    original_img_dir_path = str(pathlib.Path(imgs_directories).joinpath(original_img_dir))
-    proceeded_img_dir_path = str(pathlib.Path(imgs_directories).joinpath(proceeded_img_dir))
+        original_img_dir = "org_imgs"
+        proceeded_img_dir = "proc_imgs"
 
-    processor_4_org_img = Preprocessor(original_img_dir_path)
-    processor_4_proc_img = Preprocessor(proceeded_img_dir_path)
+        original_img_dir_path = str(pathlib.Path(imgs_directories).joinpath(original_img_dir))
+        proceeded_img_dir_path = str(pathlib.Path(imgs_directories).joinpath(proceeded_img_dir))
 
-    all_org_imgs: Generator[pathlib.PosixPath, None, None] = processor_4_org_img.get_images()
-    all_proc_imgs: Generator[pathlib.PosixPath, None, None] = processor_4_proc_img.get_images()
-    images_generators = (all_org_imgs, all_proc_imgs)
+        processor_4_org_img = Preprocessor([original_img_dir_path])
+        processor_4_proc_img = Preprocessor([proceeded_img_dir_path])
 
-    validate_processing(images_generators, save_destination)
+        all_org_imgs: Generator[pathlib.PosixPath, None, None] = processor_4_org_img.get_images()
+        all_proc_imgs: Generator[pathlib.PosixPath, None, None] = processor_4_proc_img.get_images()
+        images_generators = (all_org_imgs, all_proc_imgs)
+
+        if validation_type == "metrics":
+            validate_processing(images_generators, save_destination)
+        else:
+            apply_canny_edge(images_generators, save_destination)
+    else:
+        raise ValueError("Wrong validation type argument\nOnly metrics or canny validations!")
 
 
 if __name__ == "__main__":
@@ -80,6 +123,8 @@ if __name__ == "__main__":
                                      argument_default=argparse.SUPPRESS, allow_abbrev=False, add_help=False)
     parser.add_argument("--dirs", metavar='dir', help="paths to images directories", nargs='+')
     parser.add_argument("--dest", type=str, help="destination of results to be saved")
+    parser.add_argument("--which_method", type=str, help="type: metrics- for mse ans ssim\ntype: canny- for canny "
+                                                         "edge detector")
     parser.add_argument("-h", "--help", action="help", help="Display this message\nOriginal images have to be in the "
                                                             "directory called /org_imgs, while processed images in "
                                                             "/proc_imgs\nImages in both directories have to be in the "

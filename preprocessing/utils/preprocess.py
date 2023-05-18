@@ -11,7 +11,6 @@ from typing import List, Tuple, Generator, Optional
 import cv2
 import numpy as np
 from sklearn.cluster import MeanShift, estimate_bandwidth
-from sklearn.preprocessing import StandardScaler
 
 from .IProcessing import IProcess
 
@@ -21,7 +20,7 @@ class Preprocessor(IProcess):
     Class containing utilities for cropping images and smoothening them
     """
 
-    def __init__(self, img_dirs: List[str], destination_path: Optional[str]) -> None:
+    def __init__(self, img_dirs: List[str], destination_path: str = "") -> None:
         """
         :param img_dirs: set of paths to images which are to be preprocessed
         :param destination_path: path to a directory where images are saved to
@@ -50,6 +49,7 @@ class Preprocessor(IProcess):
         """
 
         for directory in self._imgPaths:
+            # print(directory)
             for path in Path(directory).rglob('*'):
                 if path.suffix.lower() in self._imgExtensions:
                     yield path
@@ -91,16 +91,15 @@ class MSProcessor(Preprocessor):
         :return: None, saves images to given destination
         """
 
+        num_processes = multiprocessing.cpu_count()
+        pool = multiprocessing.Pool(processes=num_processes)
+
+        iteration = 0
+        name = "sample"
+
         if change_res is True and new_resolution is None:
             raise ValueError("ms_cluster must have new_resolution set to not None if change_res == True!")
         if change_res is True:
-
-            num_processes = multiprocessing.cpu_count()
-            pool = multiprocessing.Pool(processes=num_processes)
-
-            iteration = 0
-            name = "sample"
-
             for i in self.change_resolution(new_resolution):
                 roi_list: List[np.ndarray] = self.cut_into_smaller_imgs(i, new_width=80, new_height=76)
                 ready_rois: List[np.ndarray] = pool.map(self.ms_2_roi, roi_list)
@@ -108,21 +107,14 @@ class MSProcessor(Preprocessor):
                 cv2.imwrite(str(pathlib.PurePath(self._destPath).joinpath(name + str(iteration) + '.png')), ready_rois)
                 iteration += 1
 
-        # TODO: add here steps for processing with ms but without resizing
         else:
-            scaler = StandardScaler()
-
             for i in self.get_images():
-                image_name = str(i.name)
                 i = cv2.imread(str(i))
-                pixels = np.reshape(i, (-1, 3))
-                pixels = scaler.fit_transform(pixels)
-                bandwidth = estimate_bandwidth(pixels, quantile=self._quantile, n_samples=self._samples_numb)
-                ms = MeanShift(bandwidth=bandwidth, bin_seeding=True)
-                ms.fit(pixels)
-                labels = ms.labels_
-                labels = np.reshape(labels, i.shape[:2])
-                cv2.imwrite(str(pathlib.PurePath(self._destPath).joinpath(image_name)), labels)
+                roi_list: List[np.ndarray] = self.cut_into_smaller_imgs(i, new_width=80, new_height=76)
+                ready_rois: List[np.ndarray] = pool.map(self.ms_2_roi, roi_list)
+                ready_rois = self.merge_rois_into_image(ready_rois, new_resolution)
+                cv2.imwrite(str(pathlib.PurePath(self._destPath).joinpath(name + str(iteration) + '.png')), ready_rois)
+                iteration += 1
 
     @staticmethod
     def cut_into_smaller_imgs(img: np.ndarray, new_width: int, new_height: int, roi_number: int = 64) -> \
