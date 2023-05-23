@@ -44,7 +44,6 @@ def main(my_args: argparse.Namespace) -> None:
             exit()
 
 
-# TODO: Add tests into another directory
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Launch images processing pipeline",
                                      argument_default=argparse.SUPPRESS, allow_abbrev=False, add_help=False)
