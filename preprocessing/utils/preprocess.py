@@ -49,7 +49,6 @@ class Preprocessor(IProcess):
         """
 
         for directory in self._imgPaths:
-            # print(directory)
             for path in Path(directory).rglob('*'):
                 if path.suffix.lower() in self._imgExtensions:
                     yield path

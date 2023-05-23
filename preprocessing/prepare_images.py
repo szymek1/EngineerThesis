@@ -6,6 +6,7 @@ import argparse
 from typing import Tuple, Union
 
 from utils.preprocess import Preprocessor, MSProcessor
+from utils.performance_metric import timeit
 
 
 def tuple_of_ints(s) -> Union[Tuple[int], None]:
@@ -15,6 +16,7 @@ def tuple_of_ints(s) -> Union[Tuple[int], None]:
         print("Argument type must be tuple of integers or do not pass anything")
 
 
+@timeit
 def main(my_args: argparse.Namespace) -> None:
     imgs_directories = my_args.dirs
     save_destination = my_args.dest
@@ -25,7 +27,7 @@ def main(my_args: argparse.Namespace) -> None:
     use_ms = my_args.ms_use
 
     if use_ms is True:
-        processor = MSProcessor(imgs_directories, save_destination, 0.06, 100)
+        processor = MSProcessor(imgs_directories, save_destination, 0.08, 50)
         if new_resolution is not None:
             print("Using mean shift processor...\nResolution will be changed...")
             processor.ms_cluster(True, new_resolution)
@@ -42,6 +44,7 @@ def main(my_args: argparse.Namespace) -> None:
             exit()
 
 
+# TODO: Add tests into another directory
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Launch images processing pipeline",
                                      argument_default=argparse.SUPPRESS, allow_abbrev=False, add_help=False)
