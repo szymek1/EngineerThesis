@@ -22,8 +22,8 @@ def apply_canny_edge(images: tuple, destination: str) -> None:
     :return: none
     """
 
-    lower_threshold = 50
-    upper_threshold = 100
+    lower_threshold = 150  # value found by tuning
+    upper_threshold = 200  # value found by tuning
 
     img_count = 0
 
